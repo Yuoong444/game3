@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>체인 히어로즈: 퍼즐 RPG MVP</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div><b>체인 히어로즈</b><span id="saveState">저장됨</span></div>
+      <button id="btnReset" class="ghost">초기화</button>
+    </header>
+
+    <main class="layout">
+      <section class="battle card">
+        <div class="stage-line">
+          <div><span id="stageName">Stage</span><small id="stageGoal"></small></div>
+          <div class="timer"><span id="timeLeft">60</span>s</div>
+        </div>
+        <div class="enemybox">
+          <div class="enemyAvatar" id="enemyAvatar">👾</div>
+          <div class="enemyInfo">
+            <b id="enemyName">슬라임</b>
+            <div class="hpbar"><i id="enemyHpBar"></i></div>
+            <small><span id="enemyHp">0</span> HP · 방어 <span id="enemyDef">0</span></small>
+          </div>
+        </div>
+        <div id="board" class="board" aria-label="퍼즐 보드"></div>
+        <div class="combo-line"><span id="chainText">같은 색을 3개 이상 4방향으로 드래그하세요.</span></div>
+        <div class="actions">
+          <button id="skillShuffle">스킬: 재배치</button>
+          <button id="skillHeal">스킬: 회복</button>
+          <button id="colorBomb" disabled>색 제거 사용</button>
+        </div>
+      </section>
+
+      <aside class="side">
+        <section class="card profile">
+          <div class="hero"><div id="heroIcon">🧙</div><div><b id="heroName">루나</b><small>Lv.<span id="heroLevel">1</span> · EXP <span id="heroExp">0</span>/<span id="needExp">100</span></small></div></div>
+          <div class="stats"><span>ATK <b id="atk">0</b></span><span>HP <b id="hp">0</b></span><span>골드 <b id="gold">0</b></span><span>보석 <b id="gem">0</b></span></div>
+        </section>
+        <section class="card tabs">
+          <nav><button data-tab="stages" class="on">스테이지</button><button data-tab="chars">캐릭터</button><button data-tab="missions">미션</button><button data-tab="achieve">업적</button></nav>
+          <div id="panel"></div>
+        </section>
+      </aside>
+    </main>
+
+    <div id="toast" class="toast"></div>
+    <div id="tutorial" class="modal show">
+      <div class="modal-card">
+        <h2>튜토리얼</h2>
+        <p id="tutText"></p>
+        <div class="modal-actions"><button id="skipTut" class="ghost">건너뛰기</button><button id="nextTut">다음</button></div>
+      </div>
+    </div>
+  </div>
+  <script src="game.js"></script>
+</body>
+</html>
