@@ -1,62 +1,1076 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ko">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>체인 히어로즈: 퍼즐 RPG MVP</title>
-  <link rel="stylesheet" href="style.css" />
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>무기 강화 시스템</title>
+<link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #0a0a0f;
+  --bg2: #111118;
+  --bg3: #1a1a24;
+  --bg4: #22222e;
+  --border: rgba(255,255,255,0.08);
+  --border2: rgba(255,255,255,0.15);
+  --text: #e8e8f0;
+  --text2: #8888a0;
+  --text3: #5555668;
+  --gold: #f0c040;
+  --gold2: #e0a820;
+  --gem: #60a8ff;
+  --gem2: #4080e0;
+  --success: #40e080;
+  --great: #c060ff;
+  --fail: #ff4060;
+  --common: #aaaaaa;
+  --rare: #4488ff;
+  --epic: #cc44ff;
+  --legendary: #ff8800;
+  --mythic: #ff2244;
+  --font-title: 'Black Han Sans', sans-serif;
+  --font-body: 'Noto Sans KR', sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: var(--bg); color: var(--text); font-family: var(--font-body); min-height: 100vh; overflow-x: hidden; }
+
+/* 배경 파티클 */
+#bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0.3; }
+
+.app { position: relative; z-index: 1; max-width: 480px; margin: 0 auto; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* 헤더 */
+.header { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 12px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; }
+.header-title { font-family: var(--font-title); font-size: 18px; letter-spacing: 2px; background: linear-gradient(90deg, var(--gold), #fff, var(--gold)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+.resources { display: flex; gap: 12px; align-items: center; }
+.res-item { display: flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 500; }
+.res-icon { font-size: 14px; }
+.gold-val { color: var(--gold); }
+.gem-val { color: var(--gem); }
+
+/* 하단 탭 */
+.tab-bar { background: var(--bg2); border-top: 1px solid var(--border); padding: 8px 0 env(safe-area-inset-bottom, 8px); display: flex; position: sticky; bottom: 0; z-index: 100; }
+.tab { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px; padding: 6px 4px; cursor: pointer; transition: all 0.2s; color: var(--text2); font-size: 10px; border: none; background: none; }
+.tab.active { color: var(--gold); }
+.tab-icon { font-size: 20px; }
+
+/* 화면 */
+.screen { display: none; flex: 1; overflow-y: auto; padding-bottom: 80px; }
+.screen.active { display: block; }
+
+/* ──────────── 강화 화면 ──────────── */
+.enhance-screen { padding: 16px; }
+
+/* 무기 표시 */
+.weapon-showcase { background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; text-align: center; position: relative; overflow: hidden; }
+.weapon-bg-glow { position: absolute; inset: 0; pointer-events: none; transition: all 0.5s; }
+.weapon-stage { width: 120px; height: 120px; margin: 0 auto 12px; position: relative; display: flex; align-items: center; justify-content: center; }
+.weapon-emoji { font-size: 64px; transition: all 0.3s; filter: drop-shadow(0 0 8px rgba(255,200,0,0.3)); }
+.weapon-name { font-family: var(--font-title); font-size: 18px; letter-spacing: 1px; margin-bottom: 4px; }
+.weapon-level { font-size: 28px; font-family: var(--font-title); }
+.weapon-rarity { font-size: 12px; padding: 2px 10px; border-radius: 20px; display: inline-block; margin-bottom: 8px; }
+.rarity-common { background: rgba(170,170,170,0.2); color: var(--common); border: 1px solid rgba(170,170,170,0.3); }
+.rarity-rare { background: rgba(68,136,255,0.2); color: var(--rare); border: 1px solid rgba(68,136,255,0.3); }
+.rarity-epic { background: rgba(204,68,255,0.2); color: var(--epic); border: 1px solid rgba(204,68,255,0.3); }
+.rarity-legendary { background: rgba(255,136,0,0.2); color: var(--legendary); border: 1px solid rgba(255,136,0,0.3); }
+.rarity-mythic { background: rgba(255,34,68,0.2); color: var(--mythic); border: 1px solid rgba(255,34,68,0.4); }
+
+/* 강화 단계 아이콘 */
+.enhance-effects { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; margin-top: 8px; }
+.effect-badge { font-size: 11px; padding: 2px 8px; border-radius: 10px; background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.12); }
+.effect-badge.active { background: rgba(255,200,0,0.15); border-color: rgba(255,200,0,0.4); color: var(--gold); }
+
+/* 확률 정보 */
+.prob-bar { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 12px; }
+.prob-title { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.prob-row { display: flex; gap: 8px; }
+.prob-item { flex: 1; text-align: center; }
+.prob-label { font-size: 11px; color: var(--text2); margin-bottom: 2px; }
+.prob-val { font-size: 16px; font-weight: 700; }
+.prob-success { color: var(--success); }
+.prob-great { color: var(--great); }
+.prob-fail { color: var(--fail); }
+
+/* 비용 표시 */
+.cost-bar { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-bottom: 16px; display: flex; justify-content: space-between; align-items: center; }
+.cost-label { font-size: 13px; color: var(--text2); }
+.cost-val { font-size: 18px; font-weight: 700; color: var(--gold); }
+
+/* 강화 버튼 */
+.enhance-btn { width: 100%; padding: 16px; border: none; border-radius: 14px; background: linear-gradient(135deg, #c8a020, #f0c040, #c8a020); color: #1a1000; font-family: var(--font-title); font-size: 20px; letter-spacing: 2px; cursor: pointer; transition: all 0.2s; position: relative; overflow: hidden; }
+.enhance-btn:hover { transform: translateY(-1px); box-shadow: 0 4px 20px rgba(240,192,64,0.4); }
+.enhance-btn:active { transform: scale(0.98); }
+.enhance-btn:disabled { background: var(--bg4); color: var(--text2); cursor: not-allowed; box-shadow: none; transform: none; }
+
+.btn-row { display: flex; gap: 8px; margin-top: 8px; }
+.btn-small { flex: 1; padding: 10px; border: 1px solid var(--border2); border-radius: 10px; background: var(--bg3); color: var(--text); font-family: var(--font-body); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.btn-small:hover { background: var(--bg4); border-color: var(--gem); color: var(--gem); }
+
+/* 속성/옵션 패널 */
+.attr-panel { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
+.panel-title { font-size: 12px; color: var(--text2); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+.panel-locked { opacity: 0.4; }
+.attr-list { display: flex; flex-direction: column; gap: 6px; }
+.attr-item { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; border-radius: 8px; background: rgba(255,255,255,0.04); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.attr-item.selected { background: rgba(192,96,255,0.2); border: 1px solid rgba(192,96,255,0.4); }
+.attr-item:hover { background: rgba(255,255,255,0.08); }
+.attr-name { color: var(--text); }
+.attr-val { color: var(--gem); font-weight: 500; font-size: 12px; }
+.option-list { display: flex; flex-direction: column; gap: 4px; }
+.option-item { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 8px; border-radius: 6px; background: rgba(64,128,224,0.1); border: 1px solid rgba(64,128,224,0.2); }
+.option-name { color: var(--text2); }
+.option-val { color: var(--gem); font-weight: 500; }
+
+/* 강화 이력 */
+.history-panel { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; margin-top: 12px; }
+.history-list { max-height: 120px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+.history-item { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 8px; border-radius: 6px; }
+.h-success { background: rgba(64,224,128,0.08); color: var(--success); }
+.h-great { background: rgba(192,96,255,0.08); color: var(--great); }
+.h-fail { background: rgba(255,64,96,0.08); color: var(--fail); }
+
+/* ──────────── 결과 오버레이 ──────────── */
+.result-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.85); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.3s; }
+.result-overlay.show { opacity: 1; pointer-events: all; }
+.result-card { background: var(--bg2); border: 1px solid var(--border2); border-radius: 20px; padding: 32px 28px; width: 300px; text-align: center; transform: scale(0.9); transition: transform 0.3s; position: relative; overflow: hidden; }
+.result-overlay.show .result-card { transform: scale(1); }
+.result-effect { font-size: 72px; margin-bottom: 8px; }
+.result-title { font-family: var(--font-title); font-size: 28px; letter-spacing: 2px; margin-bottom: 8px; }
+.result-title.success { color: var(--success); }
+.result-title.great { color: var(--great); }
+.result-title.fail { color: var(--fail); }
+.result-desc { font-size: 14px; color: var(--text2); margin-bottom: 20px; line-height: 1.6; }
+.result-close { width: 100%; padding: 12px; border: 1px solid var(--border2); border-radius: 10px; background: var(--bg3); color: var(--text); font-family: var(--font-body); font-size: 15px; cursor: pointer; transition: all 0.2s; }
+.result-close:hover { background: var(--bg4); }
+
+/* ──────────── 컬렉션 화면 ──────────── */
+.collection-screen { padding: 16px; }
+.weapon-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.weapon-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 14px 12px; cursor: pointer; transition: all 0.2s; position: relative; }
+.weapon-card:hover { border-color: var(--border2); transform: translateY(-1px); }
+.weapon-card.selected { border-color: var(--gold); box-shadow: 0 0 12px rgba(240,192,64,0.2); }
+.wc-emoji { font-size: 36px; text-align: center; margin-bottom: 8px; }
+.wc-name { font-size: 13px; font-weight: 500; text-align: center; margin-bottom: 4px; }
+.wc-level { font-size: 20px; font-family: var(--font-title); text-align: center; color: var(--gold); }
+.wc-rarity { font-size: 10px; text-align: center; margin-top: 4px; }
+.wc-equipped { position: absolute; top: 6px; right: 6px; font-size: 10px; background: rgba(240,192,64,0.2); color: var(--gold); padding: 2px 6px; border-radius: 6px; border: 1px solid rgba(240,192,64,0.3); }
+
+.weapon-detail { background: var(--bg3); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-top: 12px; }
+.wd-header { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+.wd-emoji { font-size: 48px; }
+.wd-info { flex: 1; }
+.wd-name { font-family: var(--font-title); font-size: 18px; }
+.wd-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.wd-level-big { font-size: 36px; font-family: var(--font-title); color: var(--gold); }
+.wd-btns { display: flex; gap: 8px; margin-top: 12px; }
+.wd-btn { flex: 1; padding: 10px; border-radius: 10px; border: 1px solid var(--border2); background: var(--bg4); color: var(--text); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.wd-btn:hover { background: var(--bg3); }
+.wd-btn.primary { background: rgba(240,192,64,0.15); border-color: rgba(240,192,64,0.4); color: var(--gold); }
+
+/* ──────────── 뽑기 화면 ──────────── */
+.gacha-screen { padding: 16px; }
+.gacha-banner { background: var(--bg3); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; text-align: center; position: relative; overflow: hidden; }
+.gacha-title { font-family: var(--font-title); font-size: 22px; letter-spacing: 3px; background: linear-gradient(90deg, var(--legendary), #fff, var(--legendary)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; margin-bottom: 6px; }
+.gacha-sub { font-size: 12px; color: var(--text2); }
+.pity-bar { background: var(--bg4); border-radius: 6px; height: 6px; margin: 10px 0 4px; overflow: hidden; }
+.pity-fill { height: 100%; background: linear-gradient(90deg, var(--legendary), #ff4444); border-radius: 6px; transition: width 0.5s; }
+.pity-text { font-size: 11px; color: var(--text2); }
+
+.gacha-btns { display: flex; gap: 8px; margin-bottom: 16px; }
+.gacha-btn { flex: 1; padding: 16px 8px; border-radius: 14px; border: none; cursor: pointer; transition: all 0.2s; font-family: var(--font-body); }
+.gacha-btn:hover { transform: translateY(-1px); }
+.gacha-btn.gold-pull { background: linear-gradient(135deg, #6040a0, #9060d0); color: white; }
+.gacha-btn.gem-pull { background: linear-gradient(135deg, #204080, #3060c0); color: white; }
+.gacha-btn-title { font-size: 15px; font-weight: 700; }
+.gacha-btn-cost { font-size: 12px; margin-top: 2px; opacity: 0.8; }
+.gacha-btn-10 { font-size: 11px; margin-top: 1px; opacity: 0.6; }
+
+.gacha-rates { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; }
+.gacha-rates-title { font-size: 12px; color: var(--text2); margin-bottom: 8px; }
+.rate-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; border-bottom: 1px solid var(--border); }
+.rate-row:last-child { border-bottom: none; }
+
+/* 뽑기 결과 */
+.gacha-result { margin-top: 16px; }
+.gacha-result-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.gacha-card { background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 8px 4px; text-align: center; animation: cardReveal 0.3s ease; }
+@keyframes cardReveal { from { opacity: 0; transform: scale(0.8) rotateY(-20deg); } to { opacity: 1; transform: scale(1) rotateY(0); } }
+.gacha-card-emoji { font-size: 24px; }
+.gacha-card-name { font-size: 9px; margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gacha-card-rarity { font-size: 8px; margin-top: 1px; }
+
+/* ──────────── 보석 상점 ──────────── */
+.shop-screen { padding: 16px; }
+.gem-status { background: var(--bg3); border: 1px solid var(--border); border-radius: 14px; padding: 16px; margin-bottom: 16px; display: flex; align-items: center; justify-content: space-between; }
+.gem-big { font-size: 32px; font-family: var(--font-title); color: var(--gem); }
+.gem-label { font-size: 12px; color: var(--text2); }
+.shop-section-title { font-size: 13px; color: var(--text2); margin: 12px 0 8px; }
+.shop-items { display: flex; flex-direction: column; gap: 8px; }
+.shop-item { background: var(--bg3); border: 1px solid var(--border); border-radius: 12px; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; }
+.si-left { display: flex; align-items: center; gap: 12px; }
+.si-icon { font-size: 28px; }
+.si-name { font-size: 14px; font-weight: 500; }
+.si-desc { font-size: 11px; color: var(--text2); margin-top: 2px; }
+.si-cost { font-size: 13px; color: var(--gem); font-weight: 500; }
+.si-btn { padding: 8px 14px; border-radius: 8px; border: 1px solid var(--gem2); background: rgba(64,128,224,0.15); color: var(--gem); font-size: 13px; cursor: pointer; transition: all 0.2s; }
+.si-btn:hover { background: rgba(64,128,224,0.3); }
+
+/* ──────────── 유틸리티 ──────────── */
+.section-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; }
+.section-title { font-family: var(--font-title); font-size: 16px; letter-spacing: 1px; }
+.badge { font-size: 10px; padding: 2px 8px; border-radius: 10px; background: rgba(240,192,64,0.15); color: var(--gold); border: 1px solid rgba(240,192,64,0.3); }
+
+/* 애니메이션 */
+@keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-6px)} 80%{transform:translateX(6px)} }
+@keyframes glow-pulse { 0%,100%{filter:drop-shadow(0 0 8px rgba(240,192,64,0.5))} 50%{filter:drop-shadow(0 0 24px rgba(240,192,64,0.9))} }
+@keyframes lightning { 0%{opacity:1;transform:scale(1.5)} 100%{opacity:0;transform:scale(0.8)} }
+@keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
+.anim-float { animation: float 3s ease-in-out infinite; }
+.flash-overlay { position: absolute; inset: 0; pointer-events: none; border-radius: 16px; opacity: 0; transition: opacity 0.1s; }
+.flash-overlay.flash-success { background: radial-gradient(circle, rgba(64,224,128,0.6), transparent); }
+.flash-overlay.flash-great { background: radial-gradient(circle, rgba(192,96,255,0.8), transparent); }
+.flash-overlay.flash-fail { background: radial-gradient(circle, rgba(255,64,96,0.5), transparent); }
+.notification { position: fixed; top: 70px; left: 50%; transform: translateX(-50%); background: var(--bg2); border: 1px solid var(--border2); border-radius: 10px; padding: 10px 20px; font-size: 13px; z-index: 300; opacity: 0; transition: opacity 0.3s; white-space: nowrap; }
+.notification.show { opacity: 1; }
+
+/* 스크롤바 */
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+</style>
 </head>
 <body>
-  <div id="app">
-    <header class="topbar">
-      <div><b>체인 히어로즈</b><span id="saveState">저장됨</span></div>
-      <button id="btnReset" class="ghost">초기화</button>
-    </header>
 
-    <main class="layout">
-      <section class="battle card">
-        <div class="stage-line">
-          <div><span id="stageName">Stage</span><small id="stageGoal"></small></div>
-          <div class="timer"><span id="timeLeft">60</span>s</div>
-        </div>
-        <div class="enemybox">
-          <div class="enemyAvatar" id="enemyAvatar">👾</div>
-          <div class="enemyInfo">
-            <b id="enemyName">슬라임</b>
-            <div class="hpbar"><i id="enemyHpBar"></i></div>
-            <small><span id="enemyHp">0</span> HP · 방어 <span id="enemyDef">0</span></small>
-          </div>
-        </div>
-        <div id="board" class="board" aria-label="퍼즐 보드"></div>
-        <div class="combo-line"><span id="chainText">같은 색을 3개 이상 4방향으로 드래그하세요.</span></div>
-        <div class="actions">
-          <button id="skillShuffle">스킬: 재배치</button>
-          <button id="skillHeal">스킬: 회복</button>
-          <button id="colorBomb" disabled>색 제거 사용</button>
-        </div>
-      </section>
+<canvas id="bg-canvas"></canvas>
 
-      <aside class="side">
-        <section class="card profile">
-          <div class="hero"><div id="heroIcon">🧙</div><div><b id="heroName">루나</b><small>Lv.<span id="heroLevel">1</span> · EXP <span id="heroExp">0</span>/<span id="needExp">100</span></small></div></div>
-          <div class="stats"><span>ATK <b id="atk">0</b></span><span>HP <b id="hp">0</b></span><span>골드 <b id="gold">0</b></span><span>보석 <b id="gem">0</b></span></div>
-        </section>
-        <section class="card tabs">
-          <nav><button data-tab="stages" class="on">스테이지</button><button data-tab="chars">캐릭터</button><button data-tab="missions">미션</button><button data-tab="achieve">업적</button></nav>
-          <div id="panel"></div>
-        </section>
-      </aside>
-    </main>
+<div class="app">
+  <div class="header">
+    <div class="header-title">⚔ 무기 강화</div>
+    <div class="resources">
+      <div class="res-item"><span class="res-icon">💰</span><span class="gold-val" id="gold-display">10,000</span></div>
+      <div class="res-item"><span class="res-icon">💎</span><span class="gem-val" id="gem-display">50</span></div>
+    </div>
+  </div>
 
-    <div id="toast" class="toast"></div>
-    <div id="tutorial" class="modal show">
-      <div class="modal-card">
-        <h2>튜토리얼</h2>
-        <p id="tutText"></p>
-        <div class="modal-actions"><button id="skipTut" class="ghost">건너뛰기</button><button id="nextTut">다음</button></div>
+  <!-- 강화 화면 -->
+  <div id="screen-enhance" class="screen active enhance-screen">
+    <div class="weapon-showcase" id="weapon-showcase">
+      <div class="flash-overlay" id="flash-overlay"></div>
+      <div class="weapon-bg-glow" id="weapon-bg-glow"></div>
+      <div class="weapon-stage">
+        <div class="weapon-emoji anim-float" id="weapon-emoji">⚔️</div>
+      </div>
+      <div class="weapon-rarity" id="weapon-rarity-badge">일반</div>
+      <div class="weapon-name" id="weapon-name">녹슨 검</div>
+      <div class="weapon-level" id="weapon-level-display">+0</div>
+      <div class="enhance-effects">
+        <div class="effect-badge" id="eff-5">✨ 광택 +5</div>
+        <div class="effect-badge" id="eff-10">🔥 변형 +10</div>
+        <div class="effect-badge" id="eff-15">⚡ 속성 +15</div>
+        <div class="effect-badge" id="eff-20">🌟 후광 +20</div>
+        <div class="effect-badge" id="eff-30">👑 신화 +30</div>
+      </div>
+    </div>
+
+    <div class="prob-bar">
+      <div class="prob-title">현재 강화 확률</div>
+      <div class="prob-row">
+        <div class="prob-item"><div class="prob-label">성공</div><div class="prob-val prob-success" id="prob-success">80%</div></div>
+        <div class="prob-item"><div class="prob-label">대성공</div><div class="prob-val prob-great" id="prob-great">10%</div></div>
+        <div class="prob-item"><div class="prob-label">실패</div><div class="prob-val prob-fail" id="prob-fail">10%</div></div>
+      </div>
+    </div>
+
+    <div class="cost-bar">
+      <span class="cost-label">강화 비용</span>
+      <span class="cost-val" id="cost-display">💰 500</span>
+    </div>
+
+    <button class="enhance-btn" id="enhance-btn" onclick="tryEnhance()">⚡ 강화 시도</button>
+
+    <div class="btn-row">
+      <button class="btn-small" onclick="autoEnhance()">🔄 자동 강화 (💎5)</button>
+      <button class="btn-small" onclick="showProbInfo()">📊 확률 정보</button>
+    </div>
+
+    <!-- 속성 패널 -->
+    <div class="attr-panel" id="attr-panel">
+      <div class="panel-title panel-locked" id="attr-panel-title">⚡ 속성 <span style="margin-left:auto;font-size:10px;color:var(--text2)">+15 해금</span></div>
+      <div class="attr-list" id="attr-list">
+        <div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">+15 강화 시 해금됩니다</div>
+      </div>
+    </div>
+
+    <!-- 랜덤 옵션 패널 -->
+    <div class="attr-panel" id="option-panel">
+      <div class="panel-title panel-locked" id="option-panel-title">🎲 랜덤 옵션 <span style="margin-left:auto;font-size:10px;color:var(--text2)">+10 해금</span></div>
+      <div class="option-list" id="option-list">
+        <div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">+10 강화 시 해금됩니다</div>
+      </div>
+    </div>
+
+    <!-- 강화 이력 -->
+    <div class="history-panel">
+      <div class="panel-title">📜 강화 이력</div>
+      <div class="history-list" id="history-list">
+        <div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">아직 강화 기록이 없습니다</div>
       </div>
     </div>
   </div>
-  <script src="game.js"></script>
+
+  <!-- 컬렉션 화면 -->
+  <div id="screen-collection" class="screen collection-screen">
+    <div class="section-header">
+      <div class="section-title">⚔ 무기 컬렉션</div>
+      <div class="badge" id="collection-count">1 / 20</div>
+    </div>
+    <div class="weapon-grid" id="weapon-grid"></div>
+    <div class="weapon-detail" id="weapon-detail" style="display:none"></div>
+  </div>
+
+  <!-- 뽑기 화면 -->
+  <div id="screen-gacha" class="screen gacha-screen">
+    <div class="gacha-banner">
+      <div class="gacha-title">🌟 무기 소환</div>
+      <div class="gacha-sub">강력한 무기를 손에 넣어라</div>
+      <div class="pity-bar"><div class="pity-fill" id="pity-fill" style="width:0%"></div></div>
+      <div class="pity-text" id="pity-text">전설 보장까지 100회 남음</div>
+    </div>
+
+    <div class="gacha-btns">
+      <div>
+        <button class="gacha-btn gold-pull" onclick="doPull('gold', 1)">
+          <div class="gacha-btn-title">💰 골드 소환</div>
+          <div class="gacha-btn-cost">1,000 골드</div>
+          <div class="gacha-btn-10">10연 → 10,000 골드</div>
+        </button>
+      </div>
+      <div>
+        <button class="gacha-btn gem-pull" onclick="doPull('gem', 1)">
+          <div class="gacha-btn-title">💎 보석 소환</div>
+          <div class="gacha-btn-cost">10 보석</div>
+          <div class="gacha-btn-10">10연 → 90 보석</div>
+        </button>
+      </div>
+    </div>
+    <button class="btn-small" style="width:100%;margin-bottom:8px" onclick="doPull('gold', 10)">💰 10연 소환 (10,000 골드)</button>
+    <button class="btn-small" style="width:100%;margin-bottom:16px" onclick="doPull('gem', 10)">💎 10연 소환 (90 보석)</button>
+
+    <div class="gacha-rates">
+      <div class="gacha-rates-title">📊 희귀도별 등장 확률</div>
+      <div class="rate-row"><span style="color:var(--mythic)">신화</span><span>1%</span></div>
+      <div class="rate-row"><span style="color:var(--legendary)">전설</span><span>5%</span></div>
+      <div class="rate-row"><span style="color:var(--epic)">에픽</span><span>14%</span></div>
+      <div class="rate-row"><span style="color:var(--rare)">레어</span><span>30%</span></div>
+      <div class="rate-row"><span style="color:var(--common)">일반</span><span>50%</span></div>
+      <div class="rate-row" style="border-top:1px solid var(--border2);margin-top:4px;padding-top:8px"><span style="color:var(--text2)">전설 천장</span><span style="color:var(--text2)">100회 보장</span></div>
+    </div>
+
+    <div class="gacha-result" id="gacha-result"></div>
+  </div>
+
+  <!-- 보석 상점 -->
+  <div id="screen-shop" class="screen shop-screen">
+    <div class="gem-status">
+      <div><div class="gem-label">보유 보석</div><div class="gem-big" id="gem-big-display">50</div></div>
+      <div style="text-align:right"><div class="gem-label">보유 골드</div><div class="gem-big" style="color:var(--gold)" id="gold-big-display">10,000</div></div>
+    </div>
+
+    <div class="shop-section-title">🛡 보석 편의 기능</div>
+    <div class="shop-items">
+      <div class="shop-item">
+        <div class="si-left">
+          <div class="si-icon">🛡</div>
+          <div><div class="si-name">보호권 1회</div><div class="si-desc">다음 강화 실패 시 수치 유지 보장</div></div>
+        </div>
+        <div><div class="si-cost">💎 10</div><button class="si-btn" onclick="buyProtection()">구매</button></div>
+      </div>
+      <div class="shop-item">
+        <div class="si-left">
+          <div class="si-icon">⚡</div>
+          <div><div class="si-name">즉시 강화권</div><div class="si-desc">10회 자동 강화 즉시 실행</div></div>
+        </div>
+        <div><div class="si-cost">💎 20</div><button class="si-btn" onclick="buyInstant()">구매</button></div>
+      </div>
+    </div>
+
+    <div class="shop-section-title">💰 골드 획득</div>
+    <div class="shop-items">
+      <div class="shop-item">
+        <div class="si-left">
+          <div class="si-icon">💰</div>
+          <div><div class="si-name">보물 상자</div><div class="si-desc">5,000 ~ 15,000 골드 획득</div></div>
+        </div>
+        <div><div class="si-cost">💎 5</div><button class="si-btn" onclick="buyGold()">구매</button></div>
+      </div>
+    </div>
+
+    <div class="shop-section-title">📅 일일 보상</div>
+    <div class="shop-items">
+      <div class="shop-item" id="daily-item">
+        <div class="si-left">
+          <div class="si-icon">🎁</div>
+          <div><div class="si-name">일일 보상</div><div class="si-desc" id="daily-desc">보석 5개 + 골드 2,000 획득</div></div>
+        </div>
+        <div><button class="si-btn" id="daily-btn" onclick="claimDaily()">수령</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-bar">
+    <button class="tab active" onclick="showTab('enhance', this)">
+      <span class="tab-icon">⚔</span><span>강화</span>
+    </button>
+    <button class="tab" onclick="showTab('collection', this)">
+      <span class="tab-icon">📦</span><span>컬렉션</span>
+    </button>
+    <button class="tab" onclick="showTab('gacha', this)">
+      <span class="tab-icon">✨</span><span>소환</span>
+    </button>
+    <button class="tab" onclick="showTab('shop', this)">
+      <span class="tab-icon">💎</span><span>상점</span>
+    </button>
+  </div>
+</div>
+
+<!-- 결과 오버레이 -->
+<div class="result-overlay" id="result-overlay" onclick="closeResult()">
+  <div class="result-card" onclick="event.stopPropagation()">
+    <div class="result-effect" id="result-effect">✨</div>
+    <div class="result-title" id="result-title">성공!</div>
+    <div class="result-desc" id="result-desc"></div>
+    <button class="result-close" onclick="closeResult()">확인</button>
+  </div>
+</div>
+
+<div class="notification" id="notification"></div>
+
+<script>
+// ────────── 게임 상태 ──────────
+const WEAPONS = [
+  { id: 1, name: '녹슨 검', emoji: '⚔️', rarity: 'common', baseCost: 300 },
+  { id: 2, name: '숲의 활', emoji: '🏹', rarity: 'common', baseCost: 300 },
+  { id: 3, name: '강철 창', emoji: '🔱', rarity: 'rare', baseCost: 600 },
+  { id: 4, name: '마법 지팡이', emoji: '🪄', rarity: 'rare', baseCost: 600 },
+  { id: 5, name: '드래곤 검', emoji: '🗡️', rarity: 'epic', baseCost: 1200 },
+  { id: 6, name: '번개 해머', emoji: '🔨', rarity: 'epic', baseCost: 1200 },
+  { id: 7, name: '천공의 검', emoji: '⚡', rarity: 'legendary', baseCost: 2400 },
+  { id: 8, name: '심연의 낫', emoji: '🌙', rarity: 'legendary', baseCost: 2400 },
+  { id: 9, name: '신화의 검', emoji: '🌟', rarity: 'mythic', baseCost: 5000 },
+];
+
+const WEAPON_EMOJIS_EVOLVED = {
+  '⚔️': ['⚔️','🗡️','⚡','🌟','👑'],
+  '🏹': ['🏹','🎯','⚡','💫','🌟'],
+  '🔱': ['🔱','⚡','🌟','💥','👑'],
+  '🪄': ['🪄','✨','💫','🌠','🌟'],
+  '🗡️': ['🗡️','⚔️','🌟','💥','👑'],
+  '🔨': ['🔨','⚡','💥','🌟','👑'],
+  '⚡': ['⚡','💥','🌟','🌠','👑'],
+  '🌙': ['🌙','💫','🌟','✨','👑'],
+  '🌟': ['🌟','💫','✨','🌠','👑'],
+};
+
+const RARITY_PROB = {
+  gold: [{r:'common',p:70},{r:'rare',p:20},{r:'epic',p:8},{r:'legendary',p:2},{r:'mythic',p:0}],
+  gem:  [{r:'common',p:50},{r:'rare',p:30},{r:'epic',p:14},{r:'legendary',p:5},{r:'mythic',p:1}]
+};
+
+const ATTR_POOL = [
+  { id:'attack', name:'공격력 증가', desc:'+15% ATK' },
+  { id:'autogold', name:'자동 골드', desc:'+20% 골드' },
+  { id:'crit', name:'치명타', desc:'+10% 확률' },
+  { id:'gemgain', name:'보석 획득', desc:'+1 보석/5분' },
+  { id:'reducecost', name:'강화비용 감소', desc:'-10% 비용' },
+];
+
+const OPTION_POOL = [
+  { id:'clickgold', name:'클릭 골드', min:5, max:20, unit:'%' },
+  { id:'autogold', name:'자동 골드', min:10, max:30, unit:'%' },
+  { id:'crit', name:'치명타율', min:3, max:15, unit:'%' },
+  { id:'enhprob', name:'강화확률', min:1, max:5, unit:'%' },
+];
+
+let state = {
+  gold: 10000,
+  gems: 50,
+  equippedId: 1,
+  pityCount: 0,
+  dailyClaimed: false,
+  protectionCount: 0,
+  inventory: [
+    { id:1, weaponId:1, level:0, attr:null, options:[], history:[] }
+  ]
+};
+
+let currentCollectionId = 1;
+
+// ────────── 유틸 ──────────
+function formatGold(n) {
+  if(n >= 1000000) return (n/1000000).toFixed(1)+'M';
+  if(n >= 1000) return (n/1000).toFixed(1)+'K';
+  return n.toLocaleString();
+}
+
+function getWeapon(wId) { return WEAPONS.find(w=>w.id===wId); }
+function getInv(invId) { return state.inventory.find(i=>i.id===invId); }
+function getEquipped() { return getInv(state.equippedId); }
+
+function calcCost(inv) {
+  const w = getWeapon(inv.weaponId);
+  return Math.floor(w.baseCost * Math.pow(1.45, inv.level));
+}
+
+function getProbability(level) {
+  if(level <= 10) return { success: 80, great: 10, fail: 10 };
+  if(level <= 20) return { success: 50, great: 15, fail: 35 };
+  return { success: 25, great: 20, fail: 55 };
+}
+
+function rollEnhance(prob) {
+  const r = Math.random() * 100;
+  if(r < prob.great) return 'great';
+  if(r < prob.great + prob.success) return 'success';
+  return 'fail';
+}
+
+function getEmojiForLevel(baseEmoji, level) {
+  const arr = WEAPON_EMOJIS_EVOLVED[baseEmoji] || [baseEmoji,baseEmoji,baseEmoji,baseEmoji,baseEmoji];
+  if(level >= 30) return arr[4];
+  if(level >= 20) return arr[3];
+  if(level >= 10) return arr[2];
+  if(level >= 5) return arr[1];
+  return arr[0];
+}
+
+function getRarityColor(r) {
+  return { common:'--common', rare:'--rare', epic:'--epic', legendary:'--legendary', mythic:'--mythic' }[r] || '--common';
+}
+function getRarityName(r) {
+  return { common:'일반', rare:'레어', epic:'에픽', legendary:'전설', mythic:'신화' }[r] || '일반';
+}
+function getRarityClass(r) {
+  return { common:'rarity-common', rare:'rarity-rare', epic:'rarity-epic', legendary:'rarity-legendary', mythic:'rarity-mythic' }[r] || 'rarity-common';
+}
+
+// ────────── UI 업데이트 ──────────
+function updateUI() {
+  document.getElementById('gold-display').textContent = formatGold(state.gold);
+  document.getElementById('gem-display').textContent = state.gems;
+  document.getElementById('gem-big-display').textContent = state.gems;
+  document.getElementById('gold-big-display').textContent = formatGold(state.gold);
+
+  const inv = getEquipped();
+  if(!inv) return;
+  const w = getWeapon(inv.weaponId);
+  const prob = getProbability(inv.level);
+  const cost = calcCost(inv);
+  const emoji = getEmojiForLevel(w.emoji, inv.level);
+
+  document.getElementById('weapon-emoji').textContent = emoji;
+  document.getElementById('weapon-name').textContent = w.name;
+  document.getElementById('weapon-level-display').textContent = '+' + inv.level;
+  const levelEl = document.getElementById('weapon-level-display');
+  levelEl.style.color = inv.level >= 30 ? 'var(--mythic)' : inv.level >= 20 ? 'var(--legendary)' : inv.level >= 10 ? 'var(--epic)' : inv.level >= 5 ? 'var(--rare)' : 'var(--gold)';
+
+  const rarityBadge = document.getElementById('weapon-rarity-badge');
+  rarityBadge.textContent = getRarityName(w.rarity);
+  rarityBadge.className = 'weapon-rarity ' + getRarityClass(w.rarity);
+
+  document.getElementById('prob-success').textContent = prob.success + '%';
+  document.getElementById('prob-great').textContent = prob.great + '%';
+  document.getElementById('prob-fail').textContent = prob.fail + '%';
+  document.getElementById('cost-display').textContent = '💰 ' + formatGold(cost);
+
+  const canEnhance = state.gold >= cost && inv.level < 30;
+  document.getElementById('enhance-btn').disabled = !canEnhance;
+
+  // 효과 배지
+  ['5','10','15','20','30'].forEach(n => {
+    const el = document.getElementById('eff-'+n);
+    el.classList.toggle('active', inv.level >= parseInt(n));
+  });
+
+  // 무기 배경 글로우
+  const glow = document.getElementById('weapon-bg-glow');
+  if(inv.level >= 30) glow.style.background = 'radial-gradient(circle at 50% 50%, rgba(255,34,68,0.15), transparent 70%)';
+  else if(inv.level >= 20) glow.style.background = 'radial-gradient(circle at 50% 50%, rgba(255,136,0,0.12), transparent 70%)';
+  else if(inv.level >= 10) glow.style.background = 'radial-gradient(circle at 50% 50%, rgba(192,96,255,0.12), transparent 70%)';
+  else if(inv.level >= 5) glow.style.background = 'radial-gradient(circle at 50% 50%, rgba(240,192,64,0.10), transparent 70%)';
+  else glow.style.background = 'none';
+
+  // 속성 패널
+  const attrPanel = document.getElementById('attr-panel');
+  const attrTitle = document.getElementById('attr-panel-title');
+  const attrList = document.getElementById('attr-list');
+  if(inv.level >= 15) {
+    attrTitle.classList.remove('panel-locked');
+    attrTitle.innerHTML = '⚡ 속성 선택 <span style="margin-left:auto;font-size:10px;color:var(--success)">해금됨</span>';
+    attrList.innerHTML = ATTR_POOL.map(a => `
+      <div class="attr-item ${inv.attr===a.id?'selected':''}" onclick="selectAttr('${a.id}')">
+        <span class="attr-name">${a.name}</span>
+        <span class="attr-val">${a.desc}</span>
+      </div>`).join('');
+  } else {
+    attrTitle.classList.add('panel-locked');
+    attrTitle.innerHTML = '⚡ 속성 <span style="margin-left:auto;font-size:10px;color:var(--text2)">+15 해금</span>';
+    attrList.innerHTML = '<div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">+15 강화 시 해금됩니다</div>';
+  }
+
+  // 랜덤 옵션 패널
+  const optionTitle = document.getElementById('option-panel-title');
+  const optionList = document.getElementById('option-list');
+  if(inv.level >= 10 && inv.options.length > 0) {
+    optionTitle.classList.remove('panel-locked');
+    optionTitle.innerHTML = '🎲 랜덤 옵션 <span style="margin-left:auto;font-size:10px;color:var(--success)">해금됨</span>';
+    optionList.innerHTML = inv.options.map(o => `
+      <div class="option-item">
+        <span class="option-name">${o.name}</span>
+        <span class="option-val">+${o.val}${o.unit}</span>
+      </div>`).join('');
+  } else if(inv.level >= 10) {
+    optionTitle.classList.remove('panel-locked');
+    optionTitle.innerHTML = '🎲 랜덤 옵션 <span style="margin-left:auto;font-size:10px;color:var(--success)">해금됨</span>';
+    optionList.innerHTML = '<div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">옵션이 부여될 예정입니다</div>';
+  } else {
+    optionTitle.classList.add('panel-locked');
+    optionTitle.innerHTML = '🎲 랜덤 옵션 <span style="margin-left:auto;font-size:10px;color:var(--text2)">+10 해금</span>';
+    optionList.innerHTML = '<div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">+10 강화 시 해금됩니다</div>';
+  }
+
+  // 이력
+  const histList = document.getElementById('history-list');
+  if(inv.history.length === 0) {
+    histList.innerHTML = '<div style="font-size:12px;color:var(--text2);text-align:center;padding:8px">아직 강화 기록이 없습니다</div>';
+  } else {
+    histList.innerHTML = inv.history.slice().reverse().slice(0,20).map(h =>
+      `<div class="history-item h-${h.result}">${h.result==='success'?'✅ 성공':h.result==='great'?'⚡ 대성공':'❌ 실패'} +${h.before}→+${h.after} (💰${formatGold(h.cost)})</div>`
+    ).join('');
+  }
+}
+
+function updateCollection() {
+  const grid = document.getElementById('weapon-grid');
+  document.getElementById('collection-count').textContent = state.inventory.length + ' / 20';
+  grid.innerHTML = state.inventory.map(inv => {
+    const w = getWeapon(inv.weaponId);
+    const emoji = getEmojiForLevel(w.emoji, inv.level);
+    return `<div class="weapon-card ${currentCollectionId===inv.id?'selected':''}" onclick="selectWeapon(${inv.id})">
+      ${state.equippedId===inv.id?'<div class="wc-equipped">장착중</div>':''}
+      <div class="wc-emoji">${emoji}</div>
+      <div class="wc-name">${w.name}</div>
+      <div class="wc-level" style="color:${inv.level>=20?'var(--legendary)':inv.level>=10?'var(--epic)':'var(--gold)'}">+${inv.level}</div>
+      <div class="wc-rarity ${getRarityClass(w.rarity)}">${getRarityName(w.rarity)}</div>
+    </div>`;
+  }).join('');
+
+  const selInv = getInv(currentCollectionId);
+  const detail = document.getElementById('weapon-detail');
+  if(selInv) {
+    const w = getWeapon(selInv.weaponId);
+    const emoji = getEmojiForLevel(w.emoji, selInv.level);
+    detail.style.display = 'block';
+    const attrInfo = selInv.attr ? ATTR_POOL.find(a=>a.id===selInv.attr) : null;
+    detail.innerHTML = `
+      <div class="wd-header">
+        <div class="wd-emoji">${emoji}</div>
+        <div class="wd-info">
+          <div class="wd-name">${w.name}</div>
+          <div class="wd-sub ${getRarityClass(w.rarity)}">${getRarityName(w.rarity)}</div>
+          ${attrInfo?`<div style="font-size:11px;color:var(--gem);margin-top:3px">⚡ ${attrInfo.name} (${attrInfo.desc})</div>`:''}
+        </div>
+        <div class="wd-level-big">+${selInv.level}</div>
+      </div>
+      ${selInv.options.length>0?`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px">${selInv.options.map(o=>`<span style="font-size:11px;padding:2px 8px;border-radius:8px;background:rgba(64,128,224,0.12);border:1px solid rgba(64,128,224,0.2);color:var(--gem)">${o.name} +${o.val}${o.unit}</span>`).join('')}</div>`:''}
+      <div class="wd-btns">
+        ${state.equippedId!==selInv.id?`<button class="wd-btn primary" onclick="equipWeapon(${selInv.id})">⚔ 강화하기</button>`:'<button class="wd-btn" disabled style="opacity:0.4">장착중</button>'}
+        <button class="wd-btn" onclick="showTab('gacha', document.querySelectorAll('.tab')[2])">✨ 새 무기 소환</button>
+      </div>
+    `;
+  }
+}
+
+function updateGacha() {
+  const fill = Math.min((state.pityCount / 100) * 100, 100);
+  document.getElementById('pity-fill').style.width = fill + '%';
+  document.getElementById('pity-text').textContent = `전설 보장까지 ${100 - state.pityCount}회 남음`;
+}
+
+// ────────── 강화 로직 ──────────
+function tryEnhance() {
+  const inv = getEquipped();
+  if(!inv || inv.level >= 30) return;
+  const cost = calcCost(inv);
+  if(state.gold < cost) { notify('골드가 부족합니다! 💰'); return; }
+
+  state.gold -= cost;
+  const prob = getProbability(inv.level);
+  const result = rollEnhance(prob);
+  const before = inv.level;
+
+  if(result === 'great') {
+    const add = Math.min(2, 30 - inv.level);
+    inv.level += add;
+  } else if(result === 'success') {
+    if(state.protectionCount > 0 || true) inv.level += 1;
+  }
+  // fail: 수치 유지 (보호권이 없으면 그냥 유지)
+
+  inv.history.push({ result, before, after: inv.level, cost });
+
+  // +10 옵션 해금
+  if(inv.level >= 10 && inv.options.length === 0) {
+    const shuffled = [...OPTION_POOL].sort(() => Math.random()-0.5);
+    const count = Math.floor(Math.random()*2)+2; // 2~3개
+    inv.options = shuffled.slice(0, count).map(o => ({
+      name: o.name,
+      val: Math.floor(Math.random()*(o.max-o.min)+o.min),
+      unit: o.unit
+    }));
+  }
+
+  // +15 속성 자동 해금 (처음 해금 시 랜덤 부여)
+  if(inv.level >= 15 && !inv.attr) {
+    inv.attr = ATTR_POOL[Math.floor(Math.random()*ATTR_POOL.length)].id;
+  }
+
+  // 골드 자동 파밍 (자동골드 속성)
+  if(inv.attr === 'autogold' && inv.level >= 15) {
+    state.gold += Math.floor(cost * 0.1);
+  }
+
+  // 연출
+  playEffect(result, inv.level, before);
+  showResult(result, inv.level, before, cost);
+  updateUI();
+}
+
+function playEffect(result, newLevel, before) {
+  const overlay = document.getElementById('flash-overlay');
+  const emoji = document.getElementById('weapon-emoji');
+  overlay.className = 'flash-overlay';
+  
+  if(result === 'fail') {
+    overlay.classList.add('flash-fail');
+    emoji.style.animation = 'shake 0.5s ease';
+    setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+    setTimeout(() => { overlay.style.opacity = '0'; emoji.style.animation = 'float 3s ease-in-out infinite'; }, 400);
+  } else if(result === 'great') {
+    overlay.classList.add('flash-great');
+    emoji.style.filter = 'drop-shadow(0 0 24px rgba(192,96,255,0.9))';
+    setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+    setTimeout(() => { overlay.style.opacity = '0'; emoji.style.filter = 'drop-shadow(0 0 8px rgba(255,200,0,0.3))'; }, 600);
+  } else {
+    overlay.classList.add('flash-success');
+    setTimeout(() => { overlay.style.opacity = '1'; }, 10);
+    setTimeout(() => { overlay.style.opacity = '0'; }, 300);
+  }
+
+  // 마일스톤 특수 연출
+  if(newLevel !== before && [5,10,15,20,30].includes(newLevel)) {
+    setTimeout(() => launchParticles(newLevel), 500);
+  }
+}
+
+function showResult(result, level, before, cost) {
+  const overlay = document.getElementById('result-overlay');
+  const effect = document.getElementById('result-effect');
+  const title = document.getElementById('result-title');
+  const desc = document.getElementById('result-desc');
+
+  if(result === 'great') {
+    effect.textContent = '⚡';
+    title.textContent = '대성공!';
+    title.className = 'result-title great';
+    desc.textContent = `+${before} → +${level}\n엄청난 기운이 깃들었습니다!`;
+  } else if(result === 'success') {
+    effect.textContent = '✨';
+    title.textContent = '성공!';
+    title.className = 'result-title success';
+    desc.textContent = `+${before} → +${level}\n무기가 강해졌습니다!`;
+  } else {
+    effect.textContent = '💔';
+    title.textContent = '실패...';
+    title.className = 'result-title fail';
+    desc.textContent = `+${before} 유지\n하지만 강화 수치는 유지됩니다.`;
+  }
+
+  // 마일스톤 메시지
+  if([5,10,15,20,30].includes(level) && level > before) {
+    const msgs = { 5:'✨ +5 광택 효과 해금!', 10:'🔥 +10 외형 변화 & 랜덤 옵션 해금!', 15:'⚡ +15 속성 해금!', 20:'🌟 +20 후광 효과 해금!', 30:'👑 +30 신화 등급 달성!' };
+    desc.textContent += '\n\n' + msgs[level];
+    desc.style.color = 'var(--gold)';
+  } else {
+    desc.style.color = 'var(--text2)';
+  }
+
+  overlay.classList.add('show');
+}
+
+function closeResult() {
+  document.getElementById('result-overlay').classList.remove('show');
+}
+
+function autoEnhance() {
+  if(state.gems < 5) { notify('보석이 부족합니다! 💎'); return; }
+  state.gems -= 5;
+  const inv = getEquipped();
+  if(!inv) return;
+  
+  let count = 0;
+  const doOne = () => {
+    if(count >= 10 || inv.level >= 30 || state.gold < calcCost(inv)) {
+      updateUI();
+      notify(`자동 강화 완료! ${count}회 시도`);
+      return;
+    }
+    const cost = calcCost(inv);
+    state.gold -= cost;
+    const prob = getProbability(inv.level);
+    const result = rollEnhance(prob);
+    const before = inv.level;
+    if(result === 'great') inv.level = Math.min(30, inv.level+2);
+    else if(result === 'success') inv.level = Math.min(30, inv.level+1);
+    inv.history.push({ result, before, after: inv.level, cost });
+    if(inv.level >= 10 && inv.options.length === 0) {
+      const shuffled = [...OPTION_POOL].sort(() => Math.random()-0.5);
+      inv.options = shuffled.slice(0,2).map(o=>({name:o.name,val:Math.floor(Math.random()*(o.max-o.min)+o.min),unit:o.unit}));
+    }
+    if(inv.level >= 15 && !inv.attr) inv.attr = ATTR_POOL[Math.floor(Math.random()*ATTR_POOL.length)].id;
+    count++;
+    updateUI();
+    setTimeout(doOne, 200);
+  };
+  doOne();
+}
+
+function selectAttr(attrId) {
+  const inv = getEquipped();
+  if(!inv || inv.level < 15) return;
+  inv.attr = attrId;
+  updateUI();
+  notify('속성이 변경되었습니다!');
+}
+
+// ────────── 컬렉션 ──────────
+function selectWeapon(invId) {
+  currentCollectionId = invId;
+  updateCollection();
+}
+
+function equipWeapon(invId) {
+  state.equippedId = invId;
+  updateUI();
+  updateCollection();
+  notify('무기를 장착하고 강화 화면으로 이동합니다!');
+  setTimeout(() => showTab('enhance', document.querySelectorAll('.tab')[0]), 500);
+}
+
+// ────────── 뽑기 ──────────
+function doPull(type, count) {
+  const costs = { gold: { 1: 1000, 10: 10000 }, gem: { 1: 10, 10: 90 } };
+  const cost = costs[type][count];
+  const resource = type === 'gold' ? 'gold' : 'gems';
+  const resName = type === 'gold' ? '골드' : '보석';
+  const icon = type === 'gold' ? '💰' : '💎';
+  
+  if(state[resource] < cost) { notify(`${resName}가 부족합니다! ${icon}`); return; }
+  state[resource] -= cost;
+
+  const results = [];
+  for(let i=0; i<count; i++) {
+    state.pityCount++;
+    let rarity;
+    if(state.pityCount >= 100) { rarity = 'legendary'; state.pityCount = 0; }
+    else {
+      const r = Math.random() * 100;
+      let cum = 0;
+      const pool = RARITY_PROB[type];
+      for(const p of pool) {
+        cum += p.p;
+        if(r < cum) { rarity = p.r; break; }
+      }
+      if(!rarity) rarity = 'common';
+    }
+    const pool = WEAPONS.filter(w=>w.rarity===rarity);
+    const w = pool[Math.floor(Math.random()*pool.length)];
+    const existing = state.inventory.find(inv=>inv.weaponId===w.id);
+    let isDup = !!existing;
+    if(!isDup) {
+      const newId = Math.max(...state.inventory.map(i=>i.id))+1;
+      state.inventory.push({ id:newId, weaponId:w.id, level:0, attr:null, options:[], history:[] });
+    }
+    results.push({ weapon:w, isDup });
+  }
+
+  // 결과 표시
+  const resDiv = document.getElementById('gacha-result');
+  resDiv.innerHTML = `<div style="font-family:var(--font-title);font-size:14px;letter-spacing:1px;margin-bottom:10px;color:var(--text2)">${count}회 소환 결과</div>
+  <div class="gacha-result-grid">
+    ${results.map((r,i) => `
+      <div class="gacha-card" style="animation-delay:${i*80}ms;border-color:var(${getRarityColor(r.weapon.rarity)})">
+        <div class="gacha-card-emoji">${r.weapon.emoji}</div>
+        <div class="gacha-card-name" style="color:var(${getRarityColor(r.weapon.rarity)})">${r.weapon.name}</div>
+        <div class="gacha-card-rarity" style="color:var(${getRarityColor(r.weapon.rarity)})">${getRarityName(r.weapon.rarity)}${r.isDup?' 🔄':''}</div>
+      </div>`).join('')}
+  </div>`;
+
+  updateGacha();
+  updateUI();
+  updateCollection();
+  notify(`${count}회 소환 완료!`);
+}
+
+// ────────── 상점 ──────────
+function buyProtection() {
+  if(state.gems < 10) { notify('보석이 부족합니다! 💎'); return; }
+  state.gems -= 10;
+  state.protectionCount++;
+  updateUI();
+  notify('보호권 1회 구매 완료! 🛡');
+}
+
+function buyInstant() {
+  if(state.gems < 20) { notify('보석이 부족합니다! 💎'); return; }
+  state.gems -= 20;
+  const inv = getEquipped();
+  if(!inv) return;
+  for(let i=0; i<10; i++) {
+    if(inv.level >= 30 || state.gold < calcCost(inv)) break;
+    const cost = calcCost(inv);
+    state.gold -= cost;
+    const prob = getProbability(inv.level);
+    const result = rollEnhance(prob);
+    const before = inv.level;
+    if(result === 'great') inv.level = Math.min(30, inv.level+2);
+    else if(result === 'success') inv.level = Math.min(30, inv.level+1);
+    inv.history.push({ result, before, after: inv.level, cost });
+  }
+  if(inv.level >= 10 && inv.options.length === 0) {
+    const shuffled = [...OPTION_POOL].sort(() => Math.random()-0.5);
+    inv.options = shuffled.slice(0,2).map(o=>({name:o.name,val:Math.floor(Math.random()*(o.max-o.min)+o.min),unit:o.unit}));
+  }
+  if(inv.level >= 15 && !inv.attr) inv.attr = ATTR_POOL[Math.floor(Math.random()*ATTR_POOL.length)].id;
+  updateUI();
+  notify('즉시 강화 10회 완료! ⚡');
+}
+
+function buyGold() {
+  if(state.gems < 5) { notify('보석이 부족합니다! 💎'); return; }
+  state.gems -= 5;
+  const got = Math.floor(Math.random()*10000)+5000;
+  state.gold += got;
+  updateUI();
+  notify(`💰 ${formatGold(got)} 골드 획득!`);
+}
+
+function claimDaily() {
+  if(state.dailyClaimed) { notify('오늘은 이미 수령했습니다!'); return; }
+  state.dailyClaimed = true;
+  state.gems += 5;
+  state.gold += 2000;
+  document.getElementById('daily-btn').disabled = true;
+  document.getElementById('daily-btn').textContent = '수령완료';
+  document.getElementById('daily-desc').textContent = '내일 다시 수령 가능합니다';
+  updateUI();
+  notify('일일 보상 수령! 💎5 + 💰2,000');
+}
+
+function showProbInfo() {
+  const inv = getEquipped();
+  if(!inv) return;
+  const prob = getProbability(inv.level);
+  const cost = calcCost(inv);
+  notify(`현재 +${inv.level}: 성공${prob.success}% 대성공${prob.great}% 실패${prob.fail}%`);
+}
+
+// ────────── 탭 전환 ──────────
+function showTab(name, tabEl) {
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('screen-'+name).classList.add('active');
+  tabEl.classList.add('active');
+  if(name==='collection') updateCollection();
+  if(name==='gacha') updateGacha();
+}
+
+// ────────── 알림 ──────────
+function notify(msg) {
+  const el = document.getElementById('notification');
+  el.textContent = msg;
+  el.classList.add('show');
+  setTimeout(()=>el.classList.remove('show'), 2000);
+}
+
+// ────────── 파티클 ──────────
+function launchParticles(level) {
+  const canvas = document.getElementById('bg-canvas');
+  const ctx = canvas.getContext('2d');
+  const colors = level>=30?['#ff2244','#ff8800','#ffff00']:level>=20?['#ff8800','#ffff00','#ffffff']:['#60a8ff','#c060ff','#40e080'];
+  const particles = [];
+  const cx = canvas.width/2, cy = canvas.height/3;
+  for(let i=0;i<40;i++) {
+    const angle = Math.random()*Math.PI*2;
+    const speed = Math.random()*5+2;
+    particles.push({ x:cx, y:cy, vx:Math.cos(angle)*speed, vy:Math.sin(angle)*speed-3, life:1, color:colors[Math.floor(Math.random()*colors.length)], size:Math.random()*4+2 });
+  }
+  let frame=0;
+  const anim = () => {
+    frame++;
+    particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vy+=0.15; p.life-=0.025; ctx.globalAlpha=p.life*0.7; ctx.fillStyle=p.color; ctx.beginPath(); ctx.arc(p.x,p.y,p.size,0,Math.PI*2); ctx.fill(); });
+    ctx.globalAlpha=1;
+    if(frame<80) requestAnimationFrame(anim);
+    else ctx.clearRect(0,0,canvas.width,canvas.height);
+  };
+  requestAnimationFrame(anim);
+}
+
+// ────────── 배경 캔버스 ──────────
+const bgCanvas = document.getElementById('bg-canvas');
+const bgCtx = bgCanvas.getContext('2d');
+bgCanvas.width = window.innerWidth;
+bgCanvas.height = window.innerHeight;
+
+const stars = Array.from({length:60}, ()=>({
+  x: Math.random()*bgCanvas.width, y: Math.random()*bgCanvas.height,
+  r: Math.random()*1.5+0.3, speed: Math.random()*0.3+0.1, opacity: Math.random()
+}));
+
+function drawBg() {
+  bgCtx.clearRect(0,0,bgCanvas.width,bgCanvas.height);
+  stars.forEach(s=>{
+    s.opacity += (Math.random()-0.5)*0.05;
+    s.opacity = Math.max(0.1, Math.min(0.8, s.opacity));
+    bgCtx.globalAlpha = s.opacity;
+    bgCtx.fillStyle = '#ffffff';
+    bgCtx.beginPath();
+    bgCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+    bgCtx.fill();
+  });
+  bgCtx.globalAlpha = 1;
+  requestAnimationFrame(drawBg);
+}
+drawBg();
+
+// 골드 자동 증가 (소량)
+setInterval(() => {
+  const inv = getEquipped();
+  if(inv) {
+    const base = 10 + inv.level * 5;
+    state.gold += base;
+    if(inv.attr === 'autogold') state.gold += Math.floor(base * 0.2);
+    if(inv.attr === 'gemgain' && Math.random() < 0.05) state.gems += 1;
+    updateUI();
+    const goldEl = document.getElementById('gold-display');
+    goldEl.style.color = 'var(--success)';
+    setTimeout(() => goldEl.style.color = 'var(--gold)', 300);
+  }
+}, 3000);
+
+// 초기화
+updateUI();
+updateCollection();
+updateGacha();
+</script>
 </body>
 </html>
